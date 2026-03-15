@@ -7,7 +7,7 @@ import (
 )
 
 // getPenguinEye returns the eye character based on state.
-func getPenguinEye(hunger, mood, energy int) string {
+func getPenguinEye(hunger, mood, energy float64) string {
 	// Yatarken her zaman kapalı göz
 	if energy < 30 {
 		return "-"
@@ -37,7 +37,7 @@ func getPenguinEye(hunger, mood, energy int) string {
 }
 
 // Render returns the ASCII art based on current state.
-func Render(hunger, mood, energy int) string {
+func Render(hunger, mood, energy float64) string {
 	eye := getPenguinEye(hunger, mood, energy)
 
 	// Energy düşükse yatan penguen
@@ -77,7 +77,7 @@ func Render(hunger, mood, energy int) string {
 }
 
 // Display renders the pet with its name.
-func Display(name string, hunger, moodValue, energy int) string {
+func Display(name string, hunger, moodValue, energy float64) string {
 	var sb strings.Builder
 	sb.WriteString(Render(hunger, moodValue, energy))
 	sb.WriteString("\n")
@@ -93,8 +93,8 @@ func Display(name string, hunger, moodValue, energy int) string {
 	return sb.String()
 }
 
-// makeBar creates a progress bar string.
-func makeBar(value int, width int) string {
+// makeBar creates a progress bar string from float64 value.
+func makeBar(value float64, width int) string {
 	if value < 0 {
 		value = 0
 	}
@@ -102,14 +102,14 @@ func makeBar(value int, width int) string {
 		value = 100
 	}
 
-	filled := (value * width) / 100
+	filled := int((value / 100.0) * float64(width))
 	empty := width - filled
 
 	return "[" + strings.Repeat("#", filled) + strings.Repeat("-", empty) + "]"
 }
 
 // DisplayWithStats renders the pet with all status information.
-func DisplayWithStats(name string, hunger, moodValue, energy int) string {
+func DisplayWithStats(name string, hunger, moodValue, energy float64) string {
 	moodLabel := getMoodLabel(moodValue)
 	stateLabel := getStateLabel(hunger, moodValue, energy)
 	var sb strings.Builder
@@ -130,7 +130,7 @@ func DisplayWithStats(name string, hunger, moodValue, energy int) string {
 }
 
 // getMoodLabel converts a numeric mood value to a label.
-func getMoodLabel(mood int) string {
+func getMoodLabel(mood float64) string {
 	if mood >= 80 {
 		return "Happy"
 	}
@@ -144,7 +144,7 @@ func getMoodLabel(mood int) string {
 }
 
 // getStateLabel returns additional state info.
-func getStateLabel(hunger, mood, energy int) string {
+func getStateLabel(hunger, mood, energy float64) string {
 	if energy < 30 {
 		return "Sleeping..."
 	}

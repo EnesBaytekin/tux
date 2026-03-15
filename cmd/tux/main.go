@@ -5,9 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/imns/tux/internal/ascii"
-	"github.com/imns/tux/internal/client"
+	"github.com/imns/tux/internal/state"
 )
 
 func main() {
@@ -36,27 +37,45 @@ func main() {
 		action = args[0]
 	}
 
-	resp, err := client.SendCommand(action)
+	// Get data directory
+	home, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error getting home directory: %v\n", err)
+		os.Exit(1)
+	}
+	dataDir := filepath.Join(home, ".local", "share", "tux")
+
+	// Load state
+	s, err := state.NewState(dataDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error loading state: %v\n", err)
 		os.Exit(1)
 	}
 
-	if !resp.Success {
-		fmt.Fprintf(os.Stderr, "Error: %s\n", resp.Message)
+	// Update state based on time passed since last interaction
+	s.UpdateSinceLast()
+
+	// Execute action
+	switch action {
+	case "feed":
+		s.Feed()
+		fmt.Println("Tux has been fed!")
+	case "play":
+		s.Play()
+		fmt.Println("Tux had fun playing!")
+	case "sleep", "status":
+		// Just show state, sleep is automatic based on energy
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", action)
 		os.Exit(1)
 	}
 
-	if resp.State != nil {
-		display(resp.State)
+	// Save state
+	if err := s.Save(dataDir); err != nil {
+		fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
+		os.Exit(1)
 	}
 
-	if resp.Message != "" {
-		fmt.Println(resp.Message)
-	}
-}
-
-// display shows Tux with its current state.
-func display(state *client.State) {
-	fmt.Println(ascii.DisplayWithStats("Tux", state.Hunger, state.Mood, state.Energy))
+	// Display current state
+	fmt.Println(ascii.DisplayWithStats("Tux", s.Hunger, s.Mood, s.Energy))
 }

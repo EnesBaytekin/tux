@@ -1,205 +1,118 @@
-# Tux
+# Tux 🐧
 
-A terminal pet penguin that lives inside your Linux system.
+**Your terminal pet penguin.**
 
-Tux is a virtual pet that you interact with through simple CLI commands. The daemon runs in the background, maintaining Tux's state over time. Tux gets hungry, loses energy, and its mood changes - just like a real pet!
+A tiny, adorable penguin that lives in your terminal. Feed it, play with it, watch it sleep. It gets hungry, tired, and moody over time - just like a real pet.
+
+**Why?** Because sometimes you need a digital friend in your terminal.
+
+![Happy Tux](https://github.com/imns/tux/raw/main/docs/happy.png)
+*Happy Tux after a good meal*
+
+## Quick Start
+
+```bash
+# Install
+go install github.com/imns/tux/cmd/tux@latest
+
+# Check on your penguin
+tux
+```
+
+That's it. You now have a pet penguin. No daemon, no systemd, just pure penguin.
+
+## How It Works
+
+Tux's state is stored in `~/.local/share/tux/state.json`. Every time you interact with it, time passed is calculated and its state updates accordingly:
+
+- 🍖 **Gets hungry** over time (hunger decreases)
+- 😴 **Gets tired** over time (energy decreases)
+- 😊 **Mood changes** based on how well-fed it is
+
+You interact through simple commands:
+- `tux feed` - Fill its belly
+- `tux play` - Cheer it up (but it gets tired)
+- `tux sleep` - Let it rest
+- `tux` - See how it's doing
+
+**The magic:** State updates happen automatically when you check on Tux. If you haven't seen it in 3 hours, it will have lived through those 3 hours when you finally run `tux`. No background process needed!
+
+## It Changes Over Time
+
+Tux isn't static. It has:
+
+**3 poses:**
+- Standing normally
+- Wings spread when very happy
+- Lying down when tired
+
+**6 expressions:**
+- `^` Happy
+- `•` Normal
+- `-` Tired/sad
+- `>` Angry/upset
+- `o` Dazed (starving)
+- `*` Excited (very full)
+
+**States that evolve:**
+- Gets hungry over time
+- Loses energy when playing
+- Mood fluctuates based on care
+
+## Examples
+
+After a good meal:
+```
+    --.   __
+   (   \.' ^)=-
+    `.  '-.-
+      ;-  |\
+      |   |'
+    _,:__/_
+     Tux
+
+Mood:    [############] Happy
+Hunger:  [##########-.]
+Energy:  [#####------.]
+Too full!
+```
+
+When tired:
+```
+     ___
+   ,'   '-.__
+  /  --' )  --=-
+--'--'-------'
+     Tux
+
+Mood:    [####-------] Neutral
+Hunger:  [#######----]
+Energy:  [##---------]
+
+Sleeping...
+```
 
 ## Installation
 
-### Debian/Ubuntu
-
-```bash
-sudo dpkg -i tux_1.0.0_amd64.deb
-sudo systemctl --user enable tux
-sudo systemctl --user start tux
-```
-
-### Fedora/RHEL
-
-```bash
-sudo dnf install tux-1.0.0.x86_64.rpm
-systemctl --user enable tux
-systemctl --user start tux
-```
-
-### From Source
-
-```bash
-go install github.com/imns/tux/cmd/tux@latest
-go install github.com/imns/tux/cmd/tuxd@latest
-```
-
-Then install the systemd service manually:
-
-```bash
-mkdir -p ~/.local/share/systemd/user/
-cp scripts/tux.service ~/.local/share/systemd/user/
-systemctl --user enable tux
-systemctl --user start tux
-```
-
-## Usage
-
-Once the daemon is running, interact with Tux using the `tux` command:
-
-```bash
-# Show Tux's current state
-tux
-
-# Feed Tux
-tux feed
-
-# Play with Tux
-tux play
-
-# Let Tux sleep
-tux sleep
-
-# Show detailed status
-tux status
-```
-
-## Screenshots
-
-### Happy Tux
-
-When Tux is well-fed and happy:
-
-```
-   /\_/\
-  ( ^.^ )
-  /  >  \
-  Tux
-
-Mood: Happy
-Hunger: 80
-Energy: 80
-```
-
-### Neutral Tux
-
-When Tux's mood is average:
-
-```
-   /\_/\
-  ( o.o )
-  /  >  \
-  Tux
-
-Mood: Neutral
-Hunger: 50
-Energy: 60
-```
-
-### Sad Tux
-
-When Tux is feeling down:
-
-```
-   /\_/\
-  ( -.- )
-  /  >  \
-  Tux
-
-Mood: Sad
-Hunger: 30
-Energy: 40
-```
-
-### Angry Tux
-
-When Tux is very hungry or unhappy:
-
-```
-   /\_/\
-  ( >.< )
-  /  >  \
-  Tux
-
-Mood: Angry
-Hunger: 15
-Energy: 20
-```
-
-## State System
-
-Tux's state is tracked across these metrics:
-
-- **Hunger** (0-100): How full Tux is. Decreases over time.
-- **Mood** (0-100): Tux's happiness. Affected by hunger and play.
-- **Energy** (0-100): Tux's energy level. Decreases with activity, increases with sleep.
-
-### State Changes Over Time
-
-Every 10 minutes, the daemon automatically updates Tux's state:
-
-- Hunger decreases by 5 (Tux gets hungry)
-- Energy decreases by 3 (Tux gets tired)
-- Mood changes based on hunger level:
-  - If hunger > 80%: Mood decreases (Tux is starving)
-  - If hunger < 40%: Mood increases (Tux is well-fed)
-
-### Command Effects
-
-| Command | Hunger | Mood | Energy |
-|---------|--------|------|--------|
-| feed    | +30    | +5   | -      |
-| play    | -      | +15  | -10    |
-| sleep   | -      | -    | +40    |
-
-## Architecture
-
-Tux consists of two components:
-
-1. **tux** - CLI tool that displays Tux and sends commands to the daemon
-2. **tuxd** - Background daemon that maintains state and responds to commands
-
-Communication happens via a Unix domain socket at `~/.local/share/tux/socket`.
-
-State is persisted in `~/.local/share/tux/state.json`.
-
-## Development
-
-### Build
-
+**From source:**
 ```bash
 go build -o tux ./cmd/tux
-go build -o tuxd ./cmd/tuxd
+sudo mv tux /usr/local/bin/
 ```
 
-### Build Packages
+**From packages (.deb/.rpm):**
+See the [Releases](https://github.com/imns/tux/releases) page.
 
-```bash
-# Build .deb package
-./packaging/deb/build.sh 1.0.0 amd64
+## Tech Stuff (Brief)
 
-# Build .rpm package
-./packaging/rpm/build.sh 1.0.0 x86_64
-```
-
-## Project Structure
-
-```
-tux/
-├── cmd/
-│   ├── tux/          # CLI tool
-│   └── tuxd/         # Daemon
-├── internal/
-│   ├── ascii/        # ASCII art rendering
-│   ├── client/       # CLI-daemon communication
-│   ├── daemon/       # Daemon implementation
-│   └── state/        # State management
-├── packaging/
-│   ├── deb/          # Debian packaging
-│   └── rpm/          # RPM packaging
-└── .github/
-    └── workflows/    # CI/CD
-```
+- Go 1.22+
+- JSON state persistence
+- Time-based state calculation (no daemon needed)
 
 ## License
 
 MIT
 
-## Contributing
+---
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+**Got ideas?** Open an issue or PR. Tux loves company.
