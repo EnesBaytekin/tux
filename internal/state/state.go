@@ -97,8 +97,8 @@ func (s *State) Update() {
 
 // Feed feeds the pet, increasing hunger (fullness) and improving mood.
 func (s *State) Feed() {
-	s.Hunger = clamp(s.Hunger + 30)
-	s.Mood = clamp(s.Mood + 5)
+	s.Hunger = clamp(s.Hunger + 10)
+	s.Mood = clamp(s.Mood + 2)
 	s.LastUpdate = time.Now()
 }
 
@@ -111,7 +111,7 @@ func (s *State) Play() {
 
 // Sleep lets the pet rest, restoring energy.
 func (s *State) Sleep() {
-	s.Energy = clamp(s.Energy + 40)
+	s.Energy = clamp(s.Energy + 15)
 	s.LastUpdate = time.Now()
 }
 

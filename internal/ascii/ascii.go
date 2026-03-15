@@ -6,42 +6,84 @@ import (
 	"strings"
 )
 
-// Art represents the ASCII art for different moods.
-var art = map[string]string{
-	"Happy": `
-   /\_/\
-  ( ^.^ )
-  /  >  \`,
-	"Neutral": `
-   /\_/\
-  ( o.o )
-  /  >  \`,
-	"Sad": `
-   /\_/\
-  ( -.- )
-  /  >  \`,
-	"Angry": `
-   /\_/\
-  ( >.< )
-  /  >  \`,
-}
-
-// Render returns the ASCII art for the given mood.
-func Render(mood string) string {
-	if a, ok := art[mood]; ok {
-		return a
+// getPenguinEye returns the eye character based on state.
+func getPenguinEye(hunger, mood, energy int) string {
+	// Yatarken her zaman kapalı göz
+	if energy < 30 {
+		return "-"
 	}
-	return art["Neutral"]
+
+	// Çok açsa şaşkın
+	if hunger < 20 {
+		return "o"
+	}
+
+	// Çok toksa hevesli
+	if hunger >= 95 {
+		return "*"
+	}
+
+	// Mood'a göre göz
+	if mood >= 80 {
+		return "^"
+	}
+	if mood >= 50 {
+		return "."
+	}
+	if mood >= 30 {
+		return "-"
+	}
+	return ">"
 }
 
-// Display renders the pet with its name and status.
-func Display(name, mood string) string {
+// Render returns the ASCII art based on current state.
+func Render(hunger, mood, energy int) string {
+	eye := getPenguinEye(hunger, mood, energy)
+
+	// Energy düşükse yatan penguen
+	if energy < 30 {
+		lines := []string{
+			"        ___",
+			"      ,'   '-.__",
+			"     /  --' )  " + eye + ")=-",
+			"  --'--'-------'",
+		}
+		return strings.Join(lines, "\n")
+	}
+
+	// Çok mutluysa ve enerjisi yüksekse kanatlarını açan penguen
+	if mood >= 80 {
+		lines := []string{
+			"    --.   __",
+			"   (   \\.' " + eye + ")=-",
+			"    `.  '-.-",
+			"      ;-  |\\",
+			"      |   |'",
+			"    _,:__/_",
+		}
+		return strings.Join(lines, "\n")
+	}
+
+	// Normal ayakta penguen
+	lines := []string{
+		"          __",
+		"        -' " + eye + ")=-",
+		"       /.-.'",
+		"      //  |\\",
+		"      ||  |'",
+		"    _,;(_/_",
+	}
+	return strings.Join(lines, "\n")
+}
+
+// Display renders the pet with its name.
+func Display(name string, hunger, moodValue, energy int) string {
 	var sb strings.Builder
-	sb.WriteString(Render(mood))
+	sb.WriteString(Render(hunger, moodValue, energy))
 	sb.WriteString("\n")
 
 	// Center the name
-	padding := (8 - len(name)) / 2
+	padding := (13 - len(name)) / 2
 	if padding > 0 {
 		sb.WriteString(strings.Repeat(" ", padding))
 	}
@@ -52,15 +94,19 @@ func Display(name, mood string) string {
 }
 
 // DisplayWithStats renders the pet with all status information.
-func DisplayWithStats(name string, hunger, mood, energy int) string {
-	moodLabel := getMoodLabel(mood)
+func DisplayWithStats(name string, hunger, moodValue, energy int) string {
+	moodLabel := getMoodLabel(moodValue)
+	stateLabel := getStateLabel(hunger, moodValue, energy)
 	var sb strings.Builder
 
-	sb.WriteString(Display(name, moodLabel))
+	sb.WriteString(Display(name, hunger, moodValue, energy))
 	sb.WriteString("\n")
 	sb.WriteString(fmt.Sprintf("Mood: %s\n", moodLabel))
 	sb.WriteString(fmt.Sprintf("Hunger: %d\n", hunger))
 	sb.WriteString(fmt.Sprintf("Energy: %d\n", energy))
+	if stateLabel != "" {
+		sb.WriteString(fmt.Sprintf("%s\n", stateLabel))
+	}
 
 	return sb.String()
 }
@@ -77,4 +123,18 @@ func getMoodLabel(mood int) string {
 		return "Sad"
 	}
 	return "Angry"
+}
+
+// getStateLabel returns additional state info.
+func getStateLabel(hunger, mood, energy int) string {
+	if energy < 30 {
+		return "Sleeping..."
+	}
+	if hunger < 20 {
+		return "Very hungry!"
+	}
+	if hunger >= 90 {
+		return "Too full!"
+	}
+	return ""
 }
