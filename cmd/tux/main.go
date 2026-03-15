@@ -2,10 +2,12 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/imns/tux/internal/ascii"
 	"github.com/imns/tux/internal/state"
@@ -17,11 +19,12 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage:\n")
 		fmt.Fprintf(os.Stderr, "  tux [command]\n\n")
 		fmt.Fprintf(os.Stderr, "Commands:\n")
-		fmt.Fprintf(os.Stderr, "  (none)   Show Tux's current state\n")
-		fmt.Fprintf(os.Stderr, "  feed     Feed Tux\n")
-		fmt.Fprintf(os.Stderr, "  play     Play with Tux\n")
-		fmt.Fprintf(os.Stderr, "  sleep    Let Tux sleep\n")
-		fmt.Fprintf(os.Stderr, "  status   Show Tux's stats\n")
+		fmt.Fprintf(os.Stderr, "  (none)   Show pet's current state\n")
+		fmt.Fprintf(os.Stderr, "  feed     Feed the pet\n")
+		fmt.Fprintf(os.Stderr, "  play     Play with the pet\n")
+		fmt.Fprintf(os.Stderr, "  sleep    Let the pet sleep\n")
+		fmt.Fprintf(os.Stderr, "  status   Show pet's stats\n")
+		fmt.Fprintf(os.Stderr, "  rename   Rename the pet\n")
 		fmt.Fprintf(os.Stderr, "\nOptions:\n")
 		flag.PrintDefaults()
 	}
@@ -59,12 +62,15 @@ func main() {
 	switch action {
 	case "feed":
 		s.Feed()
-		fmt.Println("Tux has been fed!")
+		fmt.Printf("%s has been fed!\n", s.Name)
 	case "play":
 		s.Play()
-		fmt.Println("Tux had fun playing!")
+		fmt.Printf("%s had fun playing!\n", s.Name)
 	case "sleep", "status":
 		// Just show state, sleep is automatic based on energy
+	case "rename":
+		renamePet(s, dataDir)
+		return // Don't display state after rename
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", action)
 		os.Exit(1)
@@ -77,5 +83,55 @@ func main() {
 	}
 
 	// Display current state
-	fmt.Println(ascii.DisplayWithStats("Tux", s.Hunger, s.Mood, s.Energy))
+	fmt.Println(ascii.DisplayWithStats(s.Name, s.Hunger, s.Mood, s.Energy))
+}
+
+// renamePet handles the rename command with confirmation.
+func renamePet(s *state.State, dataDir string) {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Printf("Current name: %s\n", s.Name)
+	fmt.Print("Enter new name (leave empty to cancel): ")
+
+	newName, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
+		os.Exit(1)
+	}
+
+	newName = strings.TrimSpace(newName)
+	if newName == "" {
+		fmt.Println("Rename cancelled.")
+		return
+	}
+
+	// Check if same name
+	if strings.EqualFold(newName, s.Name) {
+		fmt.Printf("That's already the pet's name!\n")
+		return
+	}
+
+	// Confirm by re-typing
+	fmt.Printf("Confirm: Type '%s' again to confirm: ", newName)
+	confirm, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
+		os.Exit(1)
+	}
+
+	confirm = strings.TrimSpace(confirm)
+	if !strings.EqualFold(confirm, newName) {
+		fmt.Println("Names don't match. Rename cancelled.")
+		return
+	}
+
+	// Update name
+	s.Name = newName
+	if err := s.Save(dataDir); err != nil {
+		fmt.Fprintf(os.Stderr, "Error saving state: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("\nPet renamed to '%s'!\n", newName)
+	fmt.Println(ascii.DisplayWithStats(s.Name, s.Hunger, s.Mood, s.Energy))
 }

@@ -13,6 +13,7 @@ import (
 // All values are clamped between 0 and 100.
 // Values are stored as float64 to preserve precision.
 type State struct {
+	Name      string     `json:"name"`      // Pet's name
 	Hunger    float64    `json:"hunger"`    // 0 = starving, 100 = full (fullness level)
 	Mood      float64    `json:"mood"`      // 0 = miserable, 100 = ecstatic
 	Energy    float64    `json:"energy"`    // 0 = exhausted, 100 = full of energy
@@ -22,7 +23,8 @@ type State struct {
 // DefaultState returns the initial state for a new pet.
 func DefaultState() State {
 	return State{
-		Hunger:     80.0,  // Starts fairly full
+		Name:       "Tux",  // Default name
+		Hunger:     80.0,   // Starts fairly full
 		Mood:       80.0,
 		Energy:     80.0,
 		LastUpdate: time.Now(),
