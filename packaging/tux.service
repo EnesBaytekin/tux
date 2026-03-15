@@ -1,0 +1,20 @@
+[Unit]
+Description=Tux Terminal Pet
+Documentation=https://github.com/imns/tux
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/tuxd
+Restart=always
+RestartSec=5
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Resource limits
+LimitNOFILE=65536
+
+[Install]
+WantedBy=default.target

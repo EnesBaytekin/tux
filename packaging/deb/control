@@ -1,0 +1,13 @@
+Package: tux
+Version: ${VERSION}
+Architecture: amd64
+Maintainer: Your Name <your.email@example.com>
+Installed-Size: 10
+Depends: libc6
+Section: utils
+Priority: optional
+Homepage: https://github.com/imns/tux
+Description: Terminal pet penguin
+ Tux is a virtual pet penguin that lives in your terminal.
+ Interact with it through simple CLI commands: feed, play, and sleep.
+ The daemon runs in the background, maintaining Tux's state over time.
