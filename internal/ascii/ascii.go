@@ -93,6 +93,21 @@ func Display(name string, hunger, moodValue, energy int) string {
 	return sb.String()
 }
 
+// makeBar creates a progress bar string.
+func makeBar(value int, width int) string {
+	if value < 0 {
+		value = 0
+	}
+	if value > 100 {
+		value = 100
+	}
+
+	filled := (value * width) / 100
+	empty := width - filled
+
+	return "[" + strings.Repeat("#", filled) + strings.Repeat("-", empty) + "]"
+}
+
 // DisplayWithStats renders the pet with all status information.
 func DisplayWithStats(name string, hunger, moodValue, energy int) string {
 	moodLabel := getMoodLabel(moodValue)
@@ -101,11 +116,14 @@ func DisplayWithStats(name string, hunger, moodValue, energy int) string {
 
 	sb.WriteString(Display(name, hunger, moodValue, energy))
 	sb.WriteString("\n")
-	sb.WriteString(fmt.Sprintf("Mood: %s\n", moodLabel))
-	sb.WriteString(fmt.Sprintf("Hunger: %d\n", hunger))
-	sb.WriteString(fmt.Sprintf("Energy: %d\n", energy))
+
+	// Stats with bars (aligned, 12 chars wide bars)
+	sb.WriteString(fmt.Sprintf("Mood:    %s %s\n", makeBar(moodValue, 12), moodLabel))
+	sb.WriteString(fmt.Sprintf("Hunger:  %s\n", makeBar(hunger, 12)))
+	sb.WriteString(fmt.Sprintf("Energy:  %s\n", makeBar(energy, 12)))
+
 	if stateLabel != "" {
-		sb.WriteString(fmt.Sprintf("%s\n", stateLabel))
+		sb.WriteString(fmt.Sprintf("\n%s\n", stateLabel))
 	}
 
 	return sb.String()

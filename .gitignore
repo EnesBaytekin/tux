@@ -1,0 +1,41 @@
+# Binaries
+tux
+tuxd
+
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go workspace files
+go.work
+go.work.sum
+
+# Dependency directories
+vendor/
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.claude/
+
+# Build artifacts
+*.deb
+*.rpm
+*.tar.gz
+
+# Test files
+coverage.out
+*.log
+
+# Local state files (for testing)
+.state.json
+state.json
+socket
