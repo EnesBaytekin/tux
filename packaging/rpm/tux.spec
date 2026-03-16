@@ -1,5 +1,5 @@
 Name:           tux
-Version:        ${VERSION}
+Version:        __VERSION__
 Release:        1%{?dist}
 Summary:        Terminal pet penguin
 
@@ -24,5 +24,5 @@ install -D -m 0755 tux %{buildroot}%{_bindir}/tux
 %{_bindir}/tux
 
 %changelog
-* ${DATE} Builder <enes@baytekin.dev> - ${VERSION}-1
+* __DATE__ Builder <enes@baytekin.dev> - __VERSION__-1
 - Initial package

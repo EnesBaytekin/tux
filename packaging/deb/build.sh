@@ -22,7 +22,7 @@ cd "$(dirname "$0")/../.."
 go build -o "${PACKAGE_DIR}/usr/bin/tux" ./cmd/tux
 
 # Create control file
-sed "s/\${VERSION}/${VERSION}/g" packaging/deb/control > "${PACKAGE_DIR}/DEBIAN/control"
+sed "s/__VERSION__/${VERSION}/g" packaging/deb/control > "${PACKAGE_DIR}/DEBIAN/control"
 
 # Calculate installed size
 INSTALLED_SIZE=$(du -sk "${PACKAGE_DIR}" | cut -f1)

@@ -33,8 +33,8 @@ mv "${SOURCE_TAR}" "${RPMBUILD_DIR}/SOURCES/"
 
 # Process spec file with version and date
 DATE=$(date "+%a %b %d %Y")
-sed "s/\${VERSION}/${VERSION}/g" packaging/rpm/tux.spec | \
-    sed "s/\${DATE}/${DATE}/g" > "${RPMBUILD_DIR}/SPECS/${SPEC_FILE}"
+sed "s/__VERSION__/${VERSION}/g" packaging/rpm/tux.spec | \
+    sed "s/__DATE__/${DATE}/g" > "${RPMBUILD_DIR}/SPECS/${SPEC_FILE}"
 
 # Build the package
 echo "Building RPM package..."

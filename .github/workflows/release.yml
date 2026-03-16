@@ -28,25 +28,20 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y dpkg-dev
-          ./packaging/deb/build.sh ${{ steps.version.outputs }} amd64
+          ./packaging/deb/build.sh ${{ steps.version.outputs.VERSION }} amd64
 
       - name: Create .rpm package
         run: |
           sudo apt-get update
           sudo apt-get install -y rpmbuild
-          ./packaging/rpm/build.sh ${{ steps.version.outputs }} x86_64
-
-      - name: Rename packages
-        run: |
-          mv tux_${{ steps.version.outputs }}_amd64.deb tux_${{ steps.version.outputs }}_amd64.deb
-          mv tux-${{ steps.version.outputs }}-1.x86_64.rpm tux-${{ steps.version.outputs }}.x86_64.rpm
+          ./packaging/rpm/build.sh ${{ steps.version.outputs.VERSION }} x86_64
 
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            tux_${{ steps.version.outputs }}_amd64.deb
-            tux-${{ steps.version.outputs }}.x86_64.rpm
+            tux_${{ steps.version.outputs.VERSION }}_amd64.deb
+            tux-${{ steps.version.outputs.VERSION }}.x86_64.rpm
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
