@@ -52,6 +52,11 @@ func NewState(dataDir string) (*State, error) {
 		return nil, err
 	}
 
+	// Ensure name is not empty (for backward compatibility)
+	if s.Name == "" {
+		s.Name = "Tux"
+	}
+
 	return &s, nil
 }
 

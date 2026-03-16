@@ -66,8 +66,11 @@ func main() {
 	case "play":
 		s.Play()
 		fmt.Printf("%s had fun playing!\n", s.Name)
-	case "sleep", "status":
-		// Just show state, sleep is automatic based on energy
+	case "sleep":
+		s.Sleep()
+		fmt.Printf("%s is resting.\n", s.Name)
+	case "status":
+		// Just show state
 	case "rename":
 		renamePet(s, dataDir)
 		return // Don't display state after rename

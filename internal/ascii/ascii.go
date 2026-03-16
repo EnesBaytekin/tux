@@ -80,10 +80,12 @@ func Render(hunger, mood, energy float64) string {
 func Display(name string, hunger, moodValue, energy float64) string {
 	var sb strings.Builder
 	sb.WriteString(Render(hunger, moodValue, energy))
+
+	// Empty line before name
 	sb.WriteString("\n")
 
-	// Center the name
-	padding := (13 - len(name)) / 2
+	// Center the name (penguin width is ~18 chars, add more padding)
+	padding := (18 - len(name)) / 2
 	if padding > 0 {
 		sb.WriteString(strings.Repeat(" ", padding))
 	}
