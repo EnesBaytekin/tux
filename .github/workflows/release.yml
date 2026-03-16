@@ -33,7 +33,7 @@ jobs:
       - name: Create .rpm package
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpmbuild
+          sudo apt-get install -y rpm-build
           ./packaging/rpm/build.sh ${{ steps.version.outputs.VERSION }} x86_64
 
       - name: Release
