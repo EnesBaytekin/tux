@@ -52,7 +52,7 @@ Sleeping...
 
 ```bash
 # Install
-go install github.com/imns/tux/cmd/tux@latest
+go install github.com/enesbaytekin/tux/cmd/tux@latest
 
 # Check on your penguin
 tux

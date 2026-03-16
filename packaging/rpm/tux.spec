@@ -4,13 +4,12 @@ Release:        1%{?dist}
 Summary:        Terminal pet penguin
 
 License:        MIT
-URL:            https://github.com/imns/tux
+URL:            https://github.com/enesbaytekin/tux
 Source0:        %{name}-%{version}.tar.gz
 
 %description
 Tux is a virtual pet penguin that lives in your terminal.
 Interact with it through simple CLI commands: feed, play, and sleep.
-No daemon needed - state updates automatically when you interact.
 
 %prep
 %setup -q
@@ -25,5 +24,5 @@ install -D -m 0755 tux %{buildroot}%{_bindir}/tux
 %{_bindir}/tux
 
 %changelog
-* ${DATE} Builder <builder@example.com> - ${VERSION}-1
+* ${DATE} Builder <enes@baytekin.dev> - ${VERSION}-1
 - Initial package
