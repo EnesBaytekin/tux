@@ -254,15 +254,33 @@ func (g *Game) update(deltaTime float64) {
 	penguinBottomY := g.penguinPos + 2
 	for i, iceberg := range g.icebergs {
 		if !g.passedIcebergs[i] {
-			penguinLeftX := 3
-			penguinRightX := 11
+			penguinInnerLeftX := 4  // Skip first '=' for inner part "(__)O>"
+			penguinInnerRightX := 10 // Inner part is 6 chars: "(__)O>"
 			icebergLeftX := iceberg.x
 			icebergRightX := iceberg.x + iceberg.width
 			icebergBottomY := iceberg.y + iceberg.height
 			icebergTopY := iceberg.y
 
+			// Calculate actual X range for top row (pixel perfect - only non-space chars)
+			topRowMinX := icebergRightX // Start with max
+			topRowMaxX := icebergLeftX  // Start with min
+			for dx, ch := range iceberg.art[0] {
+				if ch != ' ' {
+					x := iceberg.x + dx
+					if x < topRowMinX {
+						topRowMinX = x
+					}
+					if x > topRowMaxX {
+						topRowMaxX = x
+					}
+				}
+			}
+
 			// Check if penguin is colliding horizontally with iceberg
-			if penguinRightX > icebergLeftX && penguinLeftX < icebergRightX {
+			bottomCollision := (penguinInnerRightX > icebergLeftX && penguinInnerLeftX < icebergRightX)
+			topCollision := (penguinInnerRightX > topRowMinX && penguinInnerLeftX < topRowMaxX)
+
+			if bottomCollision || topCollision {
 				// Check Y position - must be at iceberg top (+1) OR bottom during entire X collision
 				correctY := (penguinBottomY == icebergBottomY || penguinBottomY == icebergBottomY+1 ||
 					penguinBottomY == icebergTopY+1)
@@ -275,28 +293,28 @@ func (g *Game) update(deltaTime float64) {
 				if !g.icebergCollision[i] {
 					g.icebergCollision[i] = false
 				}
-			} else {
-				// X collision ended - iceberg is now fully to the left of penguin
-				if icebergRightX < penguinLeftX {
-					// Check if we have tracking data for this iceberg
-					if tracked, exists := g.icebergCollision[i]; exists && !tracked {
-						// Penguin maintained correct Y throughout X collision - bonus!
-						g.passedIcebergs[i] = true
-						g.score += 20 // Bonus for passing an iceberg
+			}
 
-						// Show bonus message
-						messages := []string{
-							"NICE!",
-							"GREAT!",
-							"SWEET!",
-							"AWESOME!",
-						}
-						g.bonusMessage = messages[rand.Intn(len(messages))]
-						g.bonusTimer = 0.5 // Show for 0.5 seconds
+			// X collision ended - iceberg is now fully to the left of penguin
+			if icebergRightX < penguinInnerLeftX {
+				// Check if we have tracking data for this iceberg
+				if tracked, exists := g.icebergCollision[i]; exists && !tracked {
+					// Penguin maintained correct Y throughout X collision - bonus!
+					g.passedIcebergs[i] = true
+					g.score += 20 // Bonus for passing an iceberg
+
+					// Show bonus message
+					messages := []string{
+						"NICE!",
+						"GREAT!",
+						"SWEET!",
+						"AWESOME!",
 					}
-					// Clean up tracking
-					delete(g.icebergCollision, i)
+					g.bonusMessage = messages[rand.Intn(len(messages))]
+					g.bonusTimer = 0.5 // Show for 0.5 seconds
 				}
+				// Clean up tracking
+				delete(g.icebergCollision, i)
 			}
 		}
 	}
@@ -341,13 +359,14 @@ func (g *Game) checkCollision() bool {
 	// Penguin collision: only bottom row matters, ignore underscores
 	penguinX := 3
 	penguinY := g.penguinPos + 1 // Only use second row
-	penguinLine := "=(__)>"
+	penguinLineFull := "=(__)O>"
+	penguinLine := penguinLineFull[1:] // Skip first '=', use "(__)O>"
 
 	// Create a set of occupied positions for penguin (excluding _)
 	penguinOccupied := make(map[[2]int]bool)
 	for dx, ch := range penguinLine {
 		if ch != ' ' && ch != '_' {
-			penguinOccupied[[2]int{penguinX + dx, penguinY}] = true
+			penguinOccupied[[2]int{penguinX + 1 + dx, penguinY}] = true // +1 to skip '='
 		}
 	}
 
@@ -418,7 +437,7 @@ func (g *Game) render() {
 	// Draw penguin last (always on top)
 	penguinLines := []string{
 		"  __",
-		"=(__)>",
+		"=(__)O>",
 	}
 	for i, line := range penguinLines {
 		y := g.penguinPos + i
@@ -460,7 +479,7 @@ func (g *Game) render() {
 	// Draw bonus message in the buffer (bottom right corner) if active
 	if g.bonusMessage != "" {
 		msg := fmt.Sprintf(">>> %s! <<<", g.bonusMessage)
-		msgY := GameHeight - 3 // One row above bottom border
+		msgY := GameHeight - 1 // Two rows lower than before
 		msgX := GameWidth - len(msg) // Right aligned, touching the border
 		for i, ch := range msg {
 			x := msgX + i
