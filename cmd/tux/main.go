@@ -66,7 +66,11 @@ func main() {
 		fmt.Printf("%s has been fed!\n", s.Name)
 	case "play":
 		// Start minigame
-		g := game.NewGame()
+		petName := s.Name
+		if petName == "" {
+			petName = "Tux" // Fallback to default name
+		}
+		g := game.NewGame(petName)
 		if err := g.Start(); err != nil {
 			fmt.Fprintf(os.Stderr, "Error starting game: %v\n", err)
 			os.Exit(1)

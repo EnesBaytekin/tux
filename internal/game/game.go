@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 
@@ -29,6 +30,7 @@ const (
 
 // Game state
 type Game struct {
+	name             string
 	penguinPos       int
 	icebergs         []Iceberg
 	score            int
@@ -84,8 +86,9 @@ const penguinArt = `
   __
 =(__)O>`
 
-func NewGame() *Game {
+func NewGame(name string) *Game {
 	return &Game{
+		name:              name,
 		penguinPos:        GameHeight / 2, // Start in middle
 		icebergs:          make([]Iceberg, 0),
 		score:             0,
@@ -200,6 +203,22 @@ func (g *Game) restoreTerminal() {
 	fmt.Print("\x1b[?25h")
 	if g.oldState != nil {
 		term.Restore(int(os.Stdin.Fd()), g.oldState)
+	}
+}
+
+func (g *Game) clearInputBuffer() {
+	// Clear any pending input in stdin buffer (non-blocking attempt)
+	buf := make([]byte, 1024)
+	// Try to read with a small timeout - if nothing there, move on
+	// This is a simple approach that works in most cases
+	os.Stdin.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+	defer os.Stdin.SetReadDeadline(time.Time{}) // Clear deadline
+
+	for {
+		n, err := os.Stdin.Read(buf)
+		if err != nil || n == 0 {
+			break
+		}
 	}
 }
 
@@ -711,14 +730,26 @@ func (g *Game) renderStartScreen() {
 	}
 
 	// Tutorial/objetive text
+	displayName := g.name
+	if displayName == "" {
+		displayName = "Tux"
+	}
+	nameUpper := strings.ToUpper(displayName)
+	nameSpaced := strings.Join(strings.Split(nameUpper, ""), " ")
+	runnerSpaced := strings.Join(strings.Split("RUNNER", ""), " ")
+
 	textLines := []string{
-		"       T U X   R U N N E R       ",
+		fmt.Sprintf("     %s     ", nameSpaced),
+		fmt.Sprintf("     %s     ", runnerSpaced),
 		"                                 ",
-		"  Help Tux slide past icebergs!  ",
+		fmt.Sprintf("  Help %s slide past icebergs! ", displayName),
 		"                                 ",
-		"  W/S: Move Up/Down              ",
-		"  Avoid collision with icebergs  ",
-		"  Pass close for bonus points!   ",
+		"        [W]: Up                  ",
+		"        [S]: Down                ",
+		"        [Q]: Quit                ",
+		"                                 ",
+		fmt.Sprintf("  %s loves passing close to    ", displayName),
+		"  icebergs for bonus points!     ",
 		"                                 ",
 		"      Press any key to start     ",
 	}
