@@ -403,7 +403,9 @@ func (g *Game) addIceberg() {
 	// Spawn to the RIGHT of the screen, in a 16-pixel zone
 	// Icebergs will then move left into the screen
 	x := GameWidth + rand.Intn(16)
-	y := rand.Intn(GameHeight-3-len(art)) + 2
+	// Random Y position including above top edge
+	// Y can be -1 (partially above screen) to 13 (bottom)
+	y := rand.Intn(GameHeight - len(art) + 2) - 1
 
 	g.icebergs = append(g.icebergs, Iceberg{
 		x:      x,
