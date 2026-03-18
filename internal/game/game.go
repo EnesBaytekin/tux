@@ -111,6 +111,10 @@ func (g *Game) Start() error {
 	}
 	g.oldState = oldState
 
+	// Switch to alternate screen (xterm-compatible)
+	// This creates a separate screen buffer that doesn't affect main terminal
+	fmt.Print("\x1b[?1049h")
+
 	// Restore terminal on exit
 	defer g.restoreTerminal()
 
@@ -198,9 +202,9 @@ func (g *Game) GetScore() int {
 }
 
 func (g *Game) restoreTerminal() {
-	// Just show cursor and restore terminal state - NO CLEAR
-	// (Game over screen has already been rendered)
-	fmt.Print("\x1b[?25h")
+	// Exit alternate screen and restore terminal
+	// \x1b[?1049l - Exit alternate screen (restores main terminal content)
+	fmt.Print("\x1b[?1049l\x1b[?25h")
 	if g.oldState != nil {
 		term.Restore(int(os.Stdin.Fd()), g.oldState)
 	}

@@ -82,10 +82,10 @@ func main() {
 		if score >= minScore {
 			// Player played enough, apply play effects
 			s.Play()
-			fmt.Printf("\n%s had fun playing! (Score: %d)\n", s.Name, score)
+			fmt.Printf("%s had fun playing! (Score: %d)\n", s.Name, score)
 		} else {
 			// Didn't play enough, no effect
-			fmt.Printf("\nGame over! (Score: %d) - Play a bit longer next time!\n", score)
+			fmt.Printf("Game over! (Score: %d) - Play a bit longer next time!\n", score)
 		}
 	case "sleep":
 		s.Sleep()
