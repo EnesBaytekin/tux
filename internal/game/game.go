@@ -113,6 +113,7 @@ func (g *Game) Start() error {
 
 	defer ticker.Stop()
 	defer icebergTicker.Stop()
+	defer close(g.inputChan) // Close input channel to stop readInput goroutine
 
 	for g.running {
 		select {
@@ -138,8 +139,9 @@ func (g *Game) Stop() {
 }
 
 func (g *Game) restoreTerminal() {
-	// Clear screen and show cursor
-	fmt.Print("\x1b[2J\x1b[H\x1b[?25h")
+	// Just show cursor and restore terminal state - NO CLEAR
+	// (Game over screen has already been rendered)
+	fmt.Print("\x1b[?25h")
 	if g.oldState != nil {
 		term.Restore(int(os.Stdin.Fd()), g.oldState)
 	}
@@ -152,7 +154,12 @@ func (g *Game) readInput() {
 		if err != nil || n == 0 {
 			return
 		}
-		g.inputChan <- rune(buf[0])
+		// Check if channel is still open
+		select {
+		case g.inputChan <- rune(buf[0]):
+		default:
+			return // Channel closed, stop reading
+		}
 	}
 }
 
@@ -340,8 +347,8 @@ func (g *Game) render() {
 }
 
 func (g *Game) renderGameOver() {
-	// Clear screen and move cursor to top-left
-	fmt.Print("\x1b[2J\x1b[H")
+	// Clear screen for game over display
+	fmt.Print("\x1b[H")
 
 	// Create game buffer as rune arrays
 	buffer := make([][]rune, GameHeight)
@@ -356,41 +363,91 @@ func (g *Game) renderGameOver() {
 		buffer[i][GameWidth-1] = '|'
 	}
 
-	// Draw simple "GAME OVER" text
+	// Generate random state for penguin
+	hunger := rand.Float64() * 100
+	mood := rand.Float64() * 100
+	energy := rand.Float64() * 100
+
+	// Get penguin eye based on random state
+	var eye string
+	if energy < 30 {
+		eye = "-" // Sleeping
+	} else if hunger < 20 {
+		eye = "o" // Very hungry
+	} else if hunger >= 95 {
+		eye = "*" // Excited
+	} else if mood >= 80 {
+		eye = "^" // Very happy
+	} else if mood >= 50 {
+		eye = "." // Neutral
+	} else if mood >= 30 {
+		eye = "-" // Sad
+	} else {
+		eye = ">" // Angry
+	}
+
+	// Get penguin art based on random energy
+	var penguinArt []string
+	if energy < 30 {
+		// Lying down
+		penguinArt = []string{
+			"        ___",
+			"      ,'   '-.__",
+			"     /  --' )  " + eye + ")=-",
+			"  --'--'-------'",
+		}
+	} else if mood >= 80 {
+		// Wings spread (happy)
+		penguinArt = []string{
+			"    --.   __",
+			"   (   \\.' " + eye + ")=-",
+			"    `.  '-.-",
+			"      ;-  |\\",
+			"      |   |'",
+			"    _,:__/_",
+		}
+	} else {
+		// Standing
+		penguinArt = []string{
+			"          __",
+			"        -' " + eye + ")=-",
+			"       /.-.'",
+			"      //  |\\",
+			"      ||  |'",
+			"    _,;(_/_",
+		}
+	}
+
+	// Draw game over text and score
 	textLines := []string{
 		"  G A M E   O V E R  ",
 		"                     ",
 		fmt.Sprintf("    Score: %-8d    ", g.score),
 		"                     ",
-		"        ___          ",
-		"       /  .\\         ",
-		"      |  O O |       ",
-		"       \\  < /        ",
-		"        \\___/        ",
-		"         |||         ",
 	}
+	textLines = append(textLines, penguinArt...)
 
 	startY := (GameHeight - len(textLines)) / 2
+
+	// Find max line length for centering the whole block
+	maxLen := 0
+	for _, line := range textLines {
+		if len(line) > maxLen {
+			maxLen = len(line)
+		}
+	}
+	startX := (GameWidth - maxLen) / 2
+
+	// Draw all lines with same starting X position
 	for i, line := range textLines {
 		y := startY + i
 		if y >= 0 && y < GameHeight {
-			startX := (GameWidth - len(line)) / 2
 			for dx, ch := range line {
 				x := startX + dx
-				if x >= 1 && x < GameWidth-1 {
+				if x >= 1 && x < GameWidth-1 && ch != ' ' {
 					buffer[y][x] = ch
 				}
 			}
-		}
-	}
-
-	// Draw "Press Q to exit" at bottom
-	pressLine := "Press Q to exit"
-	startX := (GameWidth - len(pressLine)) / 2
-	for dx, ch := range pressLine {
-		x := startX + dx
-		if x >= 1 && x < GameWidth-1 {
-			buffer[GameHeight-2][x] = ch
 		}
 	}
 
@@ -417,12 +474,9 @@ func (g *Game) renderGameOver() {
 	}
 	fmt.Printf("%s\r\n", string(bottomBorder))
 
-	// Wait for Q key to exit
-	buf := make([]byte, 1)
-	for {
-		os.Stdin.Read(buf)
-		if buf[0] == 'q' || buf[0] == 'Q' || buf[0] == 27 {
-			break
-		}
+	// Restore terminal (show cursor, exit raw mode) - NO CLEAR
+	fmt.Print("\x1b[?25h")
+	if g.oldState != nil {
+		term.Restore(int(os.Stdin.Fd()), g.oldState)
 	}
 }
