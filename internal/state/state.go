@@ -140,13 +140,16 @@ func (s *State) UpdateSinceLast() {
 	s.Hunger = clampFloat(s.Hunger - (minutes * 0.5))
 	s.Energy = clampFloat(s.Energy - (minutes * 0.3))
 
-	// Mood changes based on hunger (fullness)
-	// Per 10 minutes: mood -10 if hunger < 20, mood +5 if hunger > 60
-	// Per 1 minute: mood -1.0 if hunger < 20, mood +0.5 if hunger > 60
+	// Mood changes: slowly decreases over time, faster if hungry
+	// Default: -0.05 per minute (very slow natural decrease)
+	// If hungry (< 20): -1.0 per minute (much faster)
+	// If full (>= 90): +0.5 per minute (improves when very full)
 	if s.Hunger < 20 {
 		s.Mood = clampFloat(s.Mood - (minutes * 1.0))
-	} else if s.Hunger > 60 {
+	} else if s.Hunger >= 90 {
 		s.Mood = clampFloat(s.Mood + (minutes * 0.5))
+	} else {
+		s.Mood = clampFloat(s.Mood - (minutes * 0.05))
 	}
 
 	// Update timestamp to now

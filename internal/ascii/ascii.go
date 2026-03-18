@@ -8,8 +8,8 @@ import (
 
 // getPenguinEye returns the eye character based on state.
 func getPenguinEye(hunger, mood, energy float64) string {
-	// Yatarken her zaman kapalı göz
-	if energy < 30 {
+	// Derin uyku (enerji çok düşük) - her zaman kapalı göz
+	if energy < 10 {
 		return "-"
 	}
 

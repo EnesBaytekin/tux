@@ -171,6 +171,10 @@ func (g *Game) Stop() {
 	close(g.cancelChan)
 }
 
+func (g *Game) GetScore() int {
+	return g.score
+}
+
 func (g *Game) restoreTerminal() {
 	// Just show cursor and restore terminal state - NO CLEAR
 	// (Game over screen has already been rendered)

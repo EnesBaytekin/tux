@@ -22,11 +22,10 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Commands:\n")
 		fmt.Fprintf(os.Stderr, "  (none)   Show pet's current state\n")
 		fmt.Fprintf(os.Stderr, "  feed     Feed the pet\n")
-		fmt.Fprintf(os.Stderr, "  play     Play with the pet\n")
+		fmt.Fprintf(os.Stderr, "  play     Play mini game with the pet\n")
 		fmt.Fprintf(os.Stderr, "  sleep    Let the pet sleep\n")
 		fmt.Fprintf(os.Stderr, "  status   Show pet's stats\n")
 		fmt.Fprintf(os.Stderr, "  rename   Rename the pet\n")
-		fmt.Fprintf(os.Stderr, "  game     Play mini game\n")
 		fmt.Fprintf(os.Stderr, "\nOptions:\n")
 		flag.PrintDefaults()
 	}
@@ -40,16 +39,6 @@ func main() {
 		action = "status"
 	} else {
 		action = args[0]
-	}
-
-	// Handle game command separately (doesn't need state)
-	if action == "game" {
-		g := game.NewGame()
-		if err := g.Start(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error starting game: %v\n", err)
-			os.Exit(1)
-		}
-		return
 	}
 
 	// Get data directory
@@ -76,8 +65,24 @@ func main() {
 		s.Feed()
 		fmt.Printf("%s has been fed!\n", s.Name)
 	case "play":
-		s.Play()
-		fmt.Printf("%s had fun playing!\n", s.Name)
+		// Start minigame
+		g := game.NewGame()
+		if err := g.Start(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error starting game: %v\n", err)
+			os.Exit(1)
+		}
+
+		// Check if player played enough (minimum score)
+		const minScore = 100
+		score := g.GetScore()
+		if score >= minScore {
+			// Player played enough, apply play effects
+			s.Play()
+			fmt.Printf("\n%s had fun playing! (Score: %d)\n", s.Name, score)
+		} else {
+			// Didn't play enough, no effect
+			fmt.Printf("\nGame over! (Score: %d) - Play a bit longer next time!\n", score)
+		}
 	case "sleep":
 		s.Sleep()
 		fmt.Printf("%s is resting.\n", s.Name)
