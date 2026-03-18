@@ -20,13 +20,17 @@ const (
 
 // Game state
 type Game struct {
-	penguinPos  int
-	icebergs    []Iceberg
-	score       int
-	running     bool
-	oldState    *term.State
-	inputChan   chan rune
-	cancelChan  chan struct{}
+	penguinPos       int
+	icebergs         []Iceberg
+	score            int
+	running          bool
+	oldState         *term.State
+	inputChan        chan rune
+	cancelChan       chan struct{}
+	passedIcebergs   map[int]bool // Track which icebergs we've passed
+	bonusMessage     string
+	bonusTimer       float64
+	icebergCollision map[int]bool // Track if penguin was ever in wrong Y position during X collision
 }
 
 type Iceberg struct {
@@ -71,12 +75,16 @@ const penguinArt = `
 
 func NewGame() *Game {
 	return &Game{
-		penguinPos: GameHeight / 2, // Start in middle
-		icebergs:   make([]Iceberg, 0),
-		score:      0,
-		running:    true,
-		inputChan:  make(chan rune, 10),
-		cancelChan: make(chan struct{}),
+		penguinPos:        GameHeight / 2, // Start in middle
+		icebergs:          make([]Iceberg, 0),
+		score:             0,
+		running:           true,
+		inputChan:         make(chan rune, 10),
+		cancelChan:        make(chan struct{}),
+		passedIcebergs:    make(map[int]bool),
+		bonusMessage:      "",
+		bonusTimer:        0,
+		icebergCollision:  make(map[int]bool),
 	}
 }
 
@@ -174,14 +182,32 @@ func (g *Game) restoreTerminal() {
 
 func (g *Game) readInput() {
 	buf := make([]byte, 1)
+	escapeSeq := false
 	for {
 		n, err := os.Stdin.Read(buf)
 		if err != nil || n == 0 {
 			return
 		}
+
+		ch := rune(buf[0])
+
+		// Handle escape sequences (arrow keys, etc.)
+		if ch == 27 { // ESC
+			escapeSeq = true
+			continue
+		}
+		if escapeSeq {
+			// Skip the rest of the escape sequence
+			if ch >= 60 && ch <= 90 { // Typically the character after ESC [
+				escapeSeq = false
+				continue
+			}
+			escapeSeq = false
+		}
+
 		// Check if channel is still open
 		select {
-		case g.inputChan <- rune(buf[0]):
+		case g.inputChan <- ch:
 		default:
 			return // Channel closed, stop reading
 		}
@@ -190,11 +216,11 @@ func (g *Game) readInput() {
 
 func (g *Game) handleInput(key rune) {
 	switch key {
-	case 'w', 'W', 65: // Up
+	case 'w', 'W': // Up
 		if g.penguinPos > -1 {
 			g.penguinPos -= 1
 		}
-	case 's', 'S', 66: // Down
+	case 's', 'S': // Down
 		if g.penguinPos < GameHeight-2 {
 			g.penguinPos += 1
 		}
@@ -219,7 +245,67 @@ func (g *Game) update(deltaTime float64) {
 	for i := len(g.icebergs) - 1; i >= 0; i-- {
 		if g.icebergs[i].x < -10 {
 			g.icebergs = append(g.icebergs[:i], g.icebergs[i+1:]...)
+			delete(g.passedIcebergs, i) // Clean up tracking
 			g.score += 10
+		}
+	}
+
+	// Check if penguin passed any icebergs (Y position: penguin bottom vs iceberg bottom)
+	penguinBottomY := g.penguinPos + 2
+	for i, iceberg := range g.icebergs {
+		if !g.passedIcebergs[i] {
+			penguinLeftX := 3
+			penguinRightX := 11
+			icebergLeftX := iceberg.x
+			icebergRightX := iceberg.x + iceberg.width
+			icebergBottomY := iceberg.y + iceberg.height
+			icebergTopY := iceberg.y
+
+			// Check if penguin is colliding horizontally with iceberg
+			if penguinRightX > icebergLeftX && penguinLeftX < icebergRightX {
+				// Check Y position - must be at iceberg top (+1) OR bottom during entire X collision
+				correctY := (penguinBottomY == icebergBottomY || penguinBottomY == icebergBottomY+1 ||
+					penguinBottomY == icebergTopY+1)
+
+				// If Y is wrong during X collision, mark as invalid for bonus
+				if !correctY {
+					g.icebergCollision[i] = true // Mark that penguin was in wrong Y position
+				}
+				// Initialize tracking if not set (false means "so far so good")
+				if !g.icebergCollision[i] {
+					g.icebergCollision[i] = false
+				}
+			} else {
+				// X collision ended - iceberg is now fully to the left of penguin
+				if icebergRightX < penguinLeftX {
+					// Check if we have tracking data for this iceberg
+					if tracked, exists := g.icebergCollision[i]; exists && !tracked {
+						// Penguin maintained correct Y throughout X collision - bonus!
+						g.passedIcebergs[i] = true
+						g.score += 20 // Bonus for passing an iceberg
+
+						// Show bonus message
+						messages := []string{
+							"NICE!",
+							"GREAT!",
+							"SWEET!",
+							"AWESOME!",
+						}
+						g.bonusMessage = messages[rand.Intn(len(messages))]
+						g.bonusTimer = 0.5 // Show for 0.5 seconds
+					}
+					// Clean up tracking
+					delete(g.icebergCollision, i)
+				}
+			}
+		}
+	}
+
+	// Update bonus timer
+	if g.bonusTimer > 0 {
+		g.bonusTimer -= deltaTime
+		if g.bonusTimer <= 0 {
+			g.bonusMessage = ""
 		}
 	}
 
@@ -267,11 +353,11 @@ func (g *Game) checkCollision() bool {
 
 	// Check each iceberg
 	for _, iceberg := range g.icebergs {
-		// Create a set of occupied positions for this iceberg
+		// Create a set of occupied positions for this iceberg (excluding _)
 		icebergOccupied := make(map[[2]int]bool)
 		for dy, line := range iceberg.art {
 			for dx, ch := range line {
-				if ch != ' ' {
+				if ch != ' ' && ch != '_' {
 					icebergOccupied[[2]int{iceberg.x + dx, iceberg.y + dy}] = true
 				}
 			}
@@ -305,7 +391,7 @@ func (g *Game) render() {
 		buffer[i][GameWidth-1] = '|'
 	}
 
-	// Draw icebergs (sorted by bottom Y position so lower ones draw on top)
+	// Draw icebergs sorted by bottom Y position (so lower ones draw on top)
 	sortedIcebergs := make([]Iceberg, len(g.icebergs))
 	copy(sortedIcebergs, g.icebergs)
 	sort.Slice(sortedIcebergs, func(i, j int) bool {
@@ -329,7 +415,7 @@ func (g *Game) render() {
 		}
 	}
 
-	// Draw penguin
+	// Draw penguin last (always on top)
 	penguinLines := []string{
 		"  __",
 		"=(__)>",
@@ -371,6 +457,19 @@ func (g *Game) render() {
 		}
 	}
 
+	// Draw bonus message in the buffer (bottom right corner) if active
+	if g.bonusMessage != "" {
+		msg := fmt.Sprintf(">>> %s! <<<", g.bonusMessage)
+		msgY := GameHeight - 3 // One row above bottom border
+		msgX := GameWidth - len(msg) // Right aligned, touching the border
+		for i, ch := range msg {
+			x := msgX + i
+			if x >= 1 && x < GameWidth-1 {
+				buffer[msgY][x] = ch
+			}
+		}
+	}
+
 	// Render everything (with \r for line start in raw mode)
 	fmt.Printf("%s\r\n", string(topBorder))
 	for _, row := range buffer {
@@ -379,7 +478,7 @@ func (g *Game) render() {
 	fmt.Printf("%s\r\n", string(bottomBorder))
 
 	// Instructions
-	fmt.Printf("\r\n  W/S or ↑/↓: Move  Q: Quit")
+	fmt.Printf("\r\n  W/S: Move  Q: Quit")
 }
 
 func (g *Game) renderGameOver() {
