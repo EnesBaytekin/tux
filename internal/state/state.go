@@ -97,6 +97,18 @@ func clampFloat(v float64) float64 {
 	return v
 }
 
+// clampHunger ensures hunger is between 0 and 110.
+// Hunger can go above 100 (up to 110) when overfeeding.
+func clampHunger(v float64) float64 {
+	if v < 0 {
+		return 0
+	}
+	if v > 110 {
+		return 110
+	}
+	return v
+}
+
 // clampInt ensures a value is between 0 and 100 (alias for clamp).
 func clampInt(v int) int {
 	return clamp(v)
@@ -137,7 +149,7 @@ func (s *State) UpdateSinceLast() {
 	// Apply linear changes based on minutes passed
 	// Per 10 minutes: hunger -5, energy -3
 	// Per 1 minute: hunger -0.5, energy -0.3
-	s.Hunger = clampFloat(s.Hunger - (minutes * 0.5))
+	s.Hunger = clampHunger(s.Hunger - (minutes * 0.5))
 	s.Energy = clampFloat(s.Energy - (minutes * 0.3))
 
 	// Mood changes: slowly decreases over time, faster if hungry
@@ -158,7 +170,7 @@ func (s *State) UpdateSinceLast() {
 
 // Feed feeds the pet, increasing hunger (fullness) and improving mood.
 func (s *State) Feed() {
-	s.Hunger = clampFloat(s.Hunger + 10.0)
+	s.Hunger = clampHunger(s.Hunger + 10.0)
 	s.Mood = clampFloat(s.Mood + 2.0)
 	s.LastUpdate = time.Now()
 }

@@ -8,6 +8,11 @@ import (
 
 // getPenguinEye returns the eye character based on state.
 func getPenguinEye(hunger, mood, energy float64) string {
+	// Too full (overfed) - X eyes (highest priority)
+	if hunger > 100 {
+		return "x"
+	}
+
 	// Derin uyku (enerji çok düşük) - her zaman kapalı göz
 	if energy < 10 {
 		return "-"
@@ -96,18 +101,29 @@ func Display(name string, hunger, moodValue, energy float64) string {
 }
 
 // makeBar creates a progress bar string from float64 value.
+// For hunger, values above 100 will show extra ## outside the bar.
 func makeBar(value float64, width int) string {
 	if value < 0 {
 		value = 0
 	}
-	if value > 100 {
-		value = 100
-	}
 
 	filled := int((value / 100.0) * float64(width))
+	if filled > width {
+		filled = width
+	}
 	empty := width - filled
 
-	return "[" + strings.Repeat("#", filled) + strings.Repeat("-", empty) + "]"
+	bar := "[" + strings.Repeat("#", filled) + strings.Repeat("-", empty) + "]"
+
+	// Add overflow indicators for values above 100
+	if value > 100 {
+		overflow := int((value - 100.0) / 5.0) // Each # represents 5 points over 100
+		if overflow > 0 {
+			bar += strings.Repeat("#", overflow)
+		}
+	}
+
+	return bar
 }
 
 // DisplayWithStats renders the pet with all status information.
@@ -153,8 +169,11 @@ func getStateLabel(hunger, mood, energy float64) string {
 	if hunger < 20 {
 		return "Very hungry!"
 	}
-	if hunger >= 90 {
+	if hunger >= 100 {
 		return "Too full!"
+	}
+	if hunger >= 90 {
+		return "Very full!"
 	}
 	return ""
 }

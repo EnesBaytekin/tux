@@ -582,7 +582,9 @@ func (g *Game) renderGameOver() {
 
 		// Get penguin eye based on random state
 		var eye string
-		if energy < 30 {
+		if hunger > 100 {
+			eye = "x" // Too full (overfed) - highest priority
+		} else if energy < 30 {
 			eye = "-" // Sleeping
 		} else if hunger < 20 {
 			eye = "o" // Very hungry
