@@ -18,11 +18,21 @@ const (
 	GameHeight = 17
 )
 
+// Game screen state
+type ScreenState int
+
+const (
+	ScreenStart ScreenState = iota
+	ScreenPlaying
+	ScreenGameOver
+)
+
 // Game state
 type Game struct {
 	penguinPos       int
 	icebergs         []Iceberg
 	score            int
+	screenState      ScreenState
 	running          bool
 	oldState         *term.State
 	inputChan        chan rune
@@ -30,7 +40,8 @@ type Game struct {
 	passedIcebergs   map[int]bool // Track which icebergs we've passed
 	bonusMessage     string
 	bonusTimer       float64
-	icebergCollision map[int]bool // Track if penguin was ever in wrong Y position during X collision
+	icebergCollision map[int]bool // Track if penguin was in wrong Y position during X collision
+	gameOverPenguin  []string    // Cached penguin art for game over screen
 }
 
 type Iceberg struct {
@@ -78,6 +89,7 @@ func NewGame() *Game {
 		penguinPos:        GameHeight / 2, // Start in middle
 		icebergs:          make([]Iceberg, 0),
 		score:             0,
+		screenState:       ScreenStart,
 		running:           true,
 		inputChan:         make(chan rune, 10),
 		cancelChan:        make(chan struct{}),
@@ -130,23 +142,31 @@ func (g *Game) Start() error {
 	for g.running {
 		now := time.Now()
 
-		// Check if we should spawn icebergs
-		if now.Sub(lastSpawn) >= nextSpawnDelay {
-			// Always spawn at least one iceberg
-			g.addIceberg()
-
-			// 50% chance to spawn a second iceberg at different position
-			if rand.Intn(2) == 0 {
+		// Render based on screen state
+		switch g.screenState {
+		case ScreenStart:
+			g.renderStartScreen()
+		case ScreenPlaying:
+			// Check if we should spawn icebergs
+			if now.Sub(lastSpawn) >= nextSpawnDelay {
+				// Always spawn at least one iceberg
 				g.addIceberg()
+
+				// 50% chance to spawn a second iceberg at different position
+				if rand.Intn(2) == 0 {
+					g.addIceberg()
+				}
+
+				lastSpawn = now
+				nextSpawnDelay = time.Duration(800+rand.Intn(1200)) * time.Millisecond
 			}
 
-			lastSpawn = now
-			nextSpawnDelay = time.Duration(800+rand.Intn(1200)) * time.Millisecond
+			// Update and render game
+			g.update(fixedDeltaTime)
+			g.render()
+		case ScreenGameOver:
+			g.renderGameOver()
 		}
-
-		// Always update and render
-		g.update(fixedDeltaTime)
-		g.render()
 
 		// Sleep for consistent 30 FPS
 		time.Sleep(33 * time.Millisecond)
@@ -162,7 +182,6 @@ func (g *Game) Start() error {
 		}
 	}
 
-	g.renderGameOver()
 	return nil
 }
 
@@ -219,17 +238,30 @@ func (g *Game) readInput() {
 }
 
 func (g *Game) handleInput(key rune) {
-	switch key {
-	case 'w', 'W': // Up
-		if g.penguinPos > -1 {
-			g.penguinPos -= 1
+	switch g.screenState {
+	case ScreenStart:
+		// Any key (except ESC) starts the game
+		if key != 27 {
+			g.screenState = ScreenPlaying
 		}
-	case 's', 'S': // Down
-		if g.penguinPos < GameHeight-2 {
-			g.penguinPos += 1
+	case ScreenPlaying:
+		switch key {
+		case 'w', 'W': // Up
+			if g.penguinPos > -1 {
+				g.penguinPos -= 1
+			}
+		case 's', 'S': // Down
+			if g.penguinPos < GameHeight-2 {
+				g.penguinPos += 1
+			}
+		case 'q', 'Q', 27: // Quit
+			g.Stop()
 		}
-	case 'q', 'Q', 27: // Quit
-		g.Stop()
+	case ScreenGameOver:
+		// Enter key exits game
+		if key == '\n' || key == '\r' {
+			g.Stop()
+		}
 	}
 }
 
@@ -333,7 +365,7 @@ func (g *Game) update(deltaTime float64) {
 
 	// Check collision
 	if g.checkCollision() {
-		g.running = false
+		g.screenState = ScreenGameOver
 	}
 
 	// Increment score for survival (10 points per second)
@@ -499,9 +531,6 @@ func (g *Game) render() {
 		fmt.Printf("%s\r\n", string(row))
 	}
 	fmt.Printf("%s\r\n", string(bottomBorder))
-
-	// Instructions
-	fmt.Printf("\r\n  W/S: Move  Q: Quit")
 }
 
 func (g *Game) renderGameOver() {
@@ -521,59 +550,64 @@ func (g *Game) renderGameOver() {
 		buffer[i][GameWidth-1] = '|'
 	}
 
-	// Generate random state for penguin
-	hunger := rand.Float64() * 100
-	mood := rand.Float64() * 100
-	energy := rand.Float64() * 100
+	// Generate penguin art only once (cached)
+	if g.gameOverPenguin == nil {
+		// Generate random state for penguin
+		hunger := rand.Float64() * 100
+		mood := rand.Float64() * 100
+		energy := rand.Float64() * 100
 
-	// Get penguin eye based on random state
-	var eye string
-	if energy < 30 {
-		eye = "-" // Sleeping
-	} else if hunger < 20 {
-		eye = "o" // Very hungry
-	} else if hunger >= 95 {
-		eye = "*" // Excited
-	} else if mood >= 80 {
-		eye = "^" // Very happy
-	} else if mood >= 50 {
-		eye = "." // Neutral
-	} else if mood >= 30 {
-		eye = "-" // Sad
-	} else {
-		eye = ">" // Angry
-	}
+		// Get penguin eye based on random state
+		var eye string
+		if energy < 30 {
+			eye = "-" // Sleeping
+		} else if hunger < 20 {
+			eye = "o" // Very hungry
+		} else if hunger >= 95 {
+			eye = "*" // Excited
+		} else if mood >= 80 {
+			eye = "^" // Very happy
+		} else if mood >= 50 {
+			eye = "." // Neutral
+		} else if mood >= 30 {
+			eye = "-" // Sad
+		} else {
+			eye = ">" // Angry
+		}
 
-	// Get penguin art based on random energy
-	var penguinArt []string
-	if energy < 30 {
-		// Lying down
-		penguinArt = []string{
-			"        ___",
-			"      ,'   '-.__",
-			"     /  --' )  " + eye + ")=-",
-			"  --'--'-------'",
+		// Get penguin art based on random energy
+		var penguinArt []string
+		if energy < 30 {
+			// Lying down
+			penguinArt = []string{
+				"        ___",
+				"      ,'   '-.__",
+				"     /  --' )  " + eye + ")=-",
+				"  --'--'-------'",
+			}
+		} else if mood >= 80 {
+			// Wings spread (happy)
+			penguinArt = []string{
+				"    --.   __",
+				"   (   \\.' " + eye + ")=-",
+				"    `.  '-.-",
+				"      ;-  |\\",
+				"      |   |'",
+				"    _,:__/_",
+			}
+		} else {
+			// Standing
+			penguinArt = []string{
+				"          __",
+				"        -' " + eye + ")=-",
+				"       /.-.'",
+				"      //  |\\",
+				"      ||  |'",
+				"    _,;(_/_",
+			}
 		}
-	} else if mood >= 80 {
-		// Wings spread (happy)
-		penguinArt = []string{
-			"    --.   __",
-			"   (   \\.' " + eye + ")=-",
-			"    `.  '-.-",
-			"      ;-  |\\",
-			"      |   |'",
-			"    _,:__/_",
-		}
-	} else {
-		// Standing
-		penguinArt = []string{
-			"          __",
-			"        -' " + eye + ")=-",
-			"       /.-.'",
-			"      //  |\\",
-			"      ||  |'",
-			"    _,;(_/_",
-		}
+
+		g.gameOverPenguin = penguinArt
 	}
 
 	// Draw game over text and score
@@ -583,7 +617,7 @@ func (g *Game) renderGameOver() {
 		fmt.Sprintf("    Score: %-8d    ", g.score),
 		"                     ",
 	}
-	textLines = append(textLines, penguinArt...)
+	textLines = append(textLines, g.gameOverPenguin...)
 
 	startY := (GameHeight - len(textLines)) / 2
 
@@ -609,6 +643,17 @@ func (g *Game) renderGameOver() {
 		}
 	}
 
+	// Draw "Press Enter to continue" at bottom
+	pressMsg := "Press Enter to continue"
+	pressY := GameHeight - 2
+	pressX := (GameWidth - len(pressMsg)) / 2
+	for i, ch := range pressMsg {
+		x := pressX + i
+		if x >= 1 && x < GameWidth-1 {
+			buffer[pressY][x] = ch
+		}
+	}
+
 	// Create top and bottom borders
 	topBorder := make([]rune, GameWidth)
 	bottomBorder := make([]rune, GameWidth)
@@ -631,10 +676,74 @@ func (g *Game) renderGameOver() {
 		fmt.Printf("%s\r\n", string(row))
 	}
 	fmt.Printf("%s\r\n", string(bottomBorder))
+}
 
-	// Restore terminal (show cursor, exit raw mode) - NO CLEAR
-	fmt.Print("\x1b[?25h")
-	if g.oldState != nil {
-		term.Restore(int(os.Stdin.Fd()), g.oldState)
+func (g *Game) renderStartScreen() {
+	// Clear screen and move cursor to top-left
+	fmt.Print("\x1b[H")
+
+	// Create game buffer as rune arrays
+	buffer := make([][]rune, GameHeight)
+	for i := range buffer {
+		buffer[i] = make([]rune, GameWidth)
+		// Fill with spaces
+		for j := range buffer[i] {
+			buffer[i][j] = ' '
+		}
+		// Add side borders
+		buffer[i][0] = '|'
+		buffer[i][GameWidth-1] = '|'
 	}
+
+	// Tutorial/objetive text
+	textLines := []string{
+		"       T U X   R U N N E R       ",
+		"                                 ",
+		"  Help Tux slide past icebergs!  ",
+		"                                 ",
+		"  W/S: Move Up/Down              ",
+		"  Avoid collision with icebergs  ",
+		"  Pass close for bonus points!   ",
+		"                                 ",
+		"      Press any key to start     ",
+	}
+
+	startY := (GameHeight - len(textLines)) / 2
+
+	// Draw all lines centered
+	for i, line := range textLines {
+		y := startY + i
+		if y >= 0 && y < GameHeight {
+			startX := (GameWidth - len(line)) / 2
+			for dx, ch := range line {
+				x := startX + dx
+				if x >= 1 && x < GameWidth-1 && ch != ' ' {
+					buffer[y][x] = ch
+				}
+			}
+		}
+	}
+
+	// Create top and bottom borders
+	topBorder := make([]rune, GameWidth)
+	bottomBorder := make([]rune, GameWidth)
+	for i := 0; i < GameWidth; i++ {
+		if i == 0 {
+			topBorder[i] = '.'
+			bottomBorder[i] = '\''
+		} else if i == GameWidth-1 {
+			topBorder[i] = '.'
+			bottomBorder[i] = '\''
+		} else {
+			topBorder[i] = '-'
+			bottomBorder[i] = '-'
+		}
+	}
+
+	// Render everything
+	fmt.Printf("%s\r\n", string(topBorder))
+	for _, row := range buffer {
+		fmt.Printf("%s\r\n", string(row))
+	}
+	fmt.Printf("%s\r\n", string(bottomBorder))
 }
