@@ -41,7 +41,7 @@ jobs:
         with:
           files: |
             tux_${{ steps.version.outputs.VERSION }}_amd64.deb
-            tux-${{ steps.version.outputs.VERSION }}.x86_64.rpm
+            tux-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
