@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"sort"
 	"syscall"
 	"time"
 
@@ -70,7 +71,7 @@ const penguinArt = `
 
 func NewGame() *Game {
 	return &Game{
-		penguinPos: 7,
+		penguinPos: GameHeight / 2, // Start in middle
 		icebergs:   make([]Iceberg, 0),
 		score:      0,
 		running:    true,
@@ -108,24 +109,48 @@ func (g *Game) Start() error {
 	g.addIceberg()
 
 	// Game loop
-	ticker := time.NewTicker(60 * time.Millisecond)
-	icebergTicker := time.NewTicker(1500 * time.Millisecond)
-
-	defer ticker.Stop()
-	defer icebergTicker.Stop()
 	defer close(g.inputChan) // Close input channel to stop readInput goroutine
 
+	// Random iceberg spawn timer
+	lastSpawn := time.Now()
+	nextSpawnDelay := time.Duration(800+rand.Intn(1200)) * time.Millisecond
+
+	// Fixed delta time for consistent 30 FPS
+	const targetFPS = 30.0
+	const fixedDeltaTime = 1.0 / targetFPS // ~0.033 seconds
+
 	for g.running {
-		select {
-		case <-ticker.C:
-			g.update()
-			g.render()
-		case <-icebergTicker.C:
+		now := time.Now()
+
+		// Check if we should spawn icebergs
+		if now.Sub(lastSpawn) >= nextSpawnDelay {
+			// Always spawn at least one iceberg
 			g.addIceberg()
+
+			// 50% chance to spawn a second iceberg at different position
+			if rand.Intn(2) == 0 {
+				g.addIceberg()
+			}
+
+			lastSpawn = now
+			nextSpawnDelay = time.Duration(800+rand.Intn(1200)) * time.Millisecond
+		}
+
+		// Always update and render
+		g.update(fixedDeltaTime)
+		g.render()
+
+		// Sleep for consistent 30 FPS
+		time.Sleep(33 * time.Millisecond)
+
+		// Check for input (non-blocking)
+		select {
 		case key := <-g.inputChan:
 			g.handleInput(key)
 		case <-g.cancelChan:
 			g.running = false
+		default:
+			// No input, continue
 		}
 	}
 
@@ -166,11 +191,11 @@ func (g *Game) readInput() {
 func (g *Game) handleInput(key rune) {
 	switch key {
 	case 'w', 'W', 65: // Up
-		if g.penguinPos > 1 {
+		if g.penguinPos > -1 {
 			g.penguinPos -= 1
 		}
 	case 's', 'S', 66: // Down
-		if g.penguinPos < GameHeight-4 {
+		if g.penguinPos < GameHeight-2 {
 			g.penguinPos += 1
 		}
 	case 'q', 'Q', 27: // Quit
@@ -178,10 +203,16 @@ func (g *Game) handleInput(key rune) {
 	}
 }
 
-func (g *Game) update() {
-	// Move icebergs left
+func (g *Game) update(deltaTime float64) {
+	// Move icebergs left (speed is pixels per second, adjusted by deltaTime)
+	// At 30 FPS, we want similar speed to before (1 pixel per 60ms tick)
+	// Old: 1 pixel per 60ms = 16.67 pixels/second
+	// New: Target 30 FPS, so per-frame movement should be similar
+	icebergSpeed := 30.0 // pixels per second (slower, easier)
+	pixelsToMove := icebergSpeed * deltaTime
+
 	for i := range g.icebergs {
-		g.icebergs[i].x -= 1
+		g.icebergs[i].x -= int(pixelsToMove)
 	}
 
 	// Remove off-screen icebergs and add score
@@ -197,8 +228,8 @@ func (g *Game) update() {
 		g.running = false
 	}
 
-	// Increment score for survival
-	g.score += 1
+	// Increment score for survival (10 points per second)
+	g.score += int(10 * deltaTime)
 }
 
 func (g *Game) addIceberg() {
@@ -206,8 +237,9 @@ func (g *Game) addIceberg() {
 	artVariants := icebergArts[rand.Intn(len(icebergArts))]
 	art := artVariants[0]
 
-	// Random position on right side
-	x := GameWidth - 1
+	// Spawn to the RIGHT of the screen, in a 16-pixel zone
+	// Icebergs will then move left into the screen
+	x := GameWidth + rand.Intn(16)
 	y := rand.Intn(GameHeight-3-len(art)) + 2
 
 	g.icebergs = append(g.icebergs, Iceberg{
@@ -220,21 +252,16 @@ func (g *Game) addIceberg() {
 }
 
 func (g *Game) checkCollision() bool {
-	// Penguin actual occupied positions (non-space chars)
+	// Penguin collision: only bottom row matters, ignore underscores
 	penguinX := 3
-	penguinY := g.penguinPos
-	penguinLines := []string{
-		"  __",
-		"=(__)>",
-	}
+	penguinY := g.penguinPos + 1 // Only use second row
+	penguinLine := "=(__)>"
 
-	// Create a set of occupied positions for penguin
+	// Create a set of occupied positions for penguin (excluding _)
 	penguinOccupied := make(map[[2]int]bool)
-	for dy, line := range penguinLines {
-		for dx, ch := range line {
-			if ch != ' ' {
-				penguinOccupied[[2]int{penguinX + dx, penguinY + dy}] = true
-			}
+	for dx, ch := range penguinLine {
+		if ch != ' ' && ch != '_' {
+			penguinOccupied[[2]int{penguinX + dx, penguinY}] = true
 		}
 	}
 
@@ -278,8 +305,17 @@ func (g *Game) render() {
 		buffer[i][GameWidth-1] = '|'
 	}
 
-	// Draw icebergs
-	for _, iceberg := range g.icebergs {
+	// Draw icebergs (sorted by bottom Y position so lower ones draw on top)
+	sortedIcebergs := make([]Iceberg, len(g.icebergs))
+	copy(sortedIcebergs, g.icebergs)
+	sort.Slice(sortedIcebergs, func(i, j int) bool {
+		// Sort by bottom Y position (y + height) so items lower on screen draw last
+		bottomI := sortedIcebergs[i].y + sortedIcebergs[i].height
+		bottomJ := sortedIcebergs[j].y + sortedIcebergs[j].height
+		return bottomI < bottomJ // Draw top first, then bottom (on top)
+	})
+
+	for _, iceberg := range sortedIcebergs {
 		for dy, line := range iceberg.art {
 			y := iceberg.y + dy
 			if y >= 0 && y < GameHeight {
