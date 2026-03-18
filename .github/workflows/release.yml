@@ -24,6 +24,12 @@ jobs:
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
+      - name: Build for macOS (amd64)
+        run: GOOS=darwin GOARCH=amd64 go build -o tux-${{ steps.version.outputs.VERSION }}-macos-amd64 ./cmd/tux
+
+      - name: Build for macOS (arm64)
+        run: GOOS=darwin GOARCH=arm64 go build -o tux-${{ steps.version.outputs.VERSION }}-macos-arm64 ./cmd/tux
+
       - name: Create .deb package
         run: |
           sudo apt-get update
@@ -34,14 +40,44 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y rpm
-          ./packaging/rpm/build.sh ${{ steps.version.outputs.VERSION }} x86_64
+          ./packaging/rpm/build.sh ${{ steps.version.outputs.VERSION }} amd64
 
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            tux_${{ steps.version.outputs.VERSION }}_amd64.deb
-            tux-${{ steps.version.outputs.VERSION }}-1.x86_64.rpm
+            tux-${{ steps.version.outputs.VERSION }}-linux-amd64.deb
+            tux-${{ steps.version.outputs.VERSION }}-linux-amd64.rpm
+            tux-${{ steps.version.outputs.VERSION }}-macos-amd64
+            tux-${{ steps.version.outputs.VERSION }}-macos-arm64
+          body: |
+            ## Installation
+
+            ### Debian/Ubuntu
+            ```bash
+            wget https://github.com/EnesBaytekin/tux/releases/download/v${{ steps.version.outputs.VERSION }}/tux-${{ steps.version.outputs.VERSION }}-linux-amd64.deb
+            sudo dpkg -i tux-${{ steps.version.outputs.VERSION }}-linux-amd64.deb
+            ```
+
+            ### Fedora/RHEL
+            ```bash
+            wget https://github.com/EnesBaytekin/tux/releases/download/v${{ steps.version.outputs.VERSION }}/tux-${{ steps.version.outputs.VERSION }}-linux-amd64.rpm
+            sudo dnf install tux-${{ steps.version.outputs.VERSION }}-linux-amd64.rpm
+            ```
+
+            ### macOS (Intel)
+            ```bash
+            wget https://github.com/EnesBaytekin/tux/releases/download/v${{ steps.version.outputs.VERSION }}/tux-${{ steps.version.outputs.VERSION }}-macos-amd64
+            chmod +x tux-${{ steps.version.outputs.VERSION }}-macos-amd64
+            sudo mv tux-${{ steps.version.outputs.VERSION }}-macos-amd64 /usr/local/bin/tux
+            ```
+
+            ### macOS (Apple Silicon)
+            ```bash
+            wget https://github.com/EnesBaytekin/tux/releases/download/v${{ steps.version.outputs.VERSION }}/tux-${{ steps.version.outputs.VERSION }}-macos-arm64
+            chmod +x tux-${{ steps.version.outputs.VERSION }}-macos-arm64
+            sudo mv tux-${{ steps.version.outputs.VERSION }}-macos-arm64 /usr/local/bin/tux
+            ```
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

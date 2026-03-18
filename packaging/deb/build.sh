@@ -3,9 +3,10 @@ set -e
 
 VERSION="${1:-1.0.0}"
 ARCH="${2:-amd64}"
+PLATFORM="linux"
 PACKAGE_NAME="tux"
 PACKAGE_DIR="${PACKAGE_NAME}_${VERSION}_${ARCH}"
-OUTPUT="${PACKAGE_NAME}_${VERSION}_${ARCH}.deb"
+OUTPUT="${PACKAGE_NAME}-${VERSION}-${PLATFORM}-${ARCH}.deb"
 
 echo "Building .deb package: ${OUTPUT}"
 

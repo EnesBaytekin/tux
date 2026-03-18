@@ -2,12 +2,19 @@
 set -e
 
 VERSION="${1:-1.0.0}"
-ARCH="${2:-x86_64}"
+ARCH="${2:-amd64}"
+# Map amd64 to x86_64 for rpmbuild
+RPM_ARCH="${ARCH}"
+if [ "${ARCH}" = "amd64" ]; then
+    RPM_ARCH="x86_64"
+fi
+PLATFORM="linux"
 PACKAGE_NAME="tux"
 SOURCE_TAR="${PACKAGE_NAME}-${VERSION}.tar.gz"
 SPEC_FILE="${PACKAGE_NAME}.spec"
 RPMBUILD_DIR="${HOME}/rpmbuild"
-OUTPUT="${PACKAGE_NAME}-${VERSION}-1.${ARCH}.rpm"
+RPM_OUTPUT="${PACKAGE_NAME}-${VERSION}-1.${RPM_ARCH}.rpm"
+OUTPUT="${PACKAGE_NAME}-${VERSION}-${PLATFORM}-${ARCH}.rpm"
 
 echo "Building .rpm package: ${OUTPUT}"
 
@@ -39,13 +46,14 @@ sed "s/__VERSION__/${VERSION}/g" packaging/rpm/tux.spec | \
 # Build the package
 echo "Building RPM package..."
 rpmbuild -ba "${RPMBUILD_DIR}/SPECS/${SPEC_FILE}" \
-    --target "${ARCH}-linux" \
+    --target "${RPM_ARCH}-linux" \
     --define "_sourcedir ${RPMBUILD_DIR}/SOURCES" \
     --define "_specdir ${RPMBUILD_DIR}/SPECS" \
     --define "_builddir ${RPMBUILD_DIR}/BUILD" \
     --define "_rpmdir ${RPMBUILD_DIR}/RPMS"
 
-# Copy the built package to current directory
-cp "${RPMBUILD_DIR}/RPMS/${ARCH}/${OUTPUT}" .
+# Copy the built package to current directory and rename
+cp "${RPMBUILD_DIR}/RPMS/${RPM_ARCH}/${RPM_OUTPUT}" .
+mv "${RPM_OUTPUT}" "${OUTPUT}"
 
 echo "Built ${OUTPUT} successfully!"
