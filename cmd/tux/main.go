@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/imns/tux/internal/ascii"
+	"github.com/imns/tux/internal/game"
 	"github.com/imns/tux/internal/state"
 )
 
@@ -25,6 +26,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  sleep    Let the pet sleep\n")
 		fmt.Fprintf(os.Stderr, "  status   Show pet's stats\n")
 		fmt.Fprintf(os.Stderr, "  rename   Rename the pet\n")
+		fmt.Fprintf(os.Stderr, "  game     Play mini game\n")
 		fmt.Fprintf(os.Stderr, "\nOptions:\n")
 		flag.PrintDefaults()
 	}
@@ -38,6 +40,16 @@ func main() {
 		action = "status"
 	} else {
 		action = args[0]
+	}
+
+	// Handle game command separately (doesn't need state)
+	if action == "game" {
+		g := game.NewGame()
+		if err := g.Start(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error starting game: %v\n", err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	// Get data directory

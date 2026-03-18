@@ -1,3 +1,7 @@
 module github.com/imns/tux
 
-go 1.24.10
+go 1.22
+
+require golang.org/x/term v0.20.0
+
+require golang.org/x/sys v0.20.0 // indirect
