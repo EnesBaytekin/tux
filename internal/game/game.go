@@ -258,8 +258,8 @@ func (g *Game) handleInput(key rune) {
 			g.Stop()
 		}
 	case ScreenGameOver:
-		// Enter key exits game
-		if key == '\n' || key == '\r' {
+		// Only Q key exits game
+		if key == 'q' || key == 'Q' {
 			g.Stop()
 		}
 	}
@@ -610,30 +610,20 @@ func (g *Game) renderGameOver() {
 		g.gameOverPenguin = penguinArt
 	}
 
-	// Draw game over text and score
-	textLines := []string{
-		"  G A M E   O V E R  ",
-		"                     ",
-		fmt.Sprintf("    Score: %-8d    ", g.score),
-		"                     ",
+	// Draw game over text and score (centered individually)
+	headerLines := []string{
+		"G A M E   O V E R",
+		" ",
+		fmt.Sprintf("Score: %d", g.score),
+		" ",
 	}
-	textLines = append(textLines, g.gameOverPenguin...)
+	headerY := (GameHeight - len(headerLines) - len(g.gameOverPenguin)) / 2
 
-	startY := (GameHeight - len(textLines)) / 2
-
-	// Find max line length for centering the whole block
-	maxLen := 0
-	for _, line := range textLines {
-		if len(line) > maxLen {
-			maxLen = len(line)
-		}
-	}
-	startX := (GameWidth - maxLen) / 2
-
-	// Draw all lines with same starting X position
-	for i, line := range textLines {
-		y := startY + i
+	// Draw header lines centered individually
+	for i, line := range headerLines {
+		y := headerY + i
 		if y >= 0 && y < GameHeight {
+			startX := (GameWidth - len(line)) / 2
 			for dx, ch := range line {
 				x := startX + dx
 				if x >= 1 && x < GameWidth-1 && ch != ' ' {
@@ -643,8 +633,33 @@ func (g *Game) renderGameOver() {
 		}
 	}
 
-	// Draw "Press Enter to continue" at bottom
-	pressMsg := "Press Enter to continue"
+	// Draw penguin art using max length for alignment
+	penguinStartY := headerY + len(headerLines)
+
+	// Find max line length in penguin art
+	maxPenguinLen := 0
+	for _, line := range g.gameOverPenguin {
+		if len(line) > maxPenguinLen {
+			maxPenguinLen = len(line)
+		}
+	}
+	penguinStartX := (GameWidth - maxPenguinLen) / 2
+
+	// Draw all penguin lines aligned to the same X position
+	for i, line := range g.gameOverPenguin {
+		y := penguinStartY + i
+		if y >= 0 && y < GameHeight {
+			for dx, ch := range line {
+				x := penguinStartX + dx
+				if x >= 1 && x < GameWidth-1 && ch != ' ' {
+					buffer[y][x] = ch
+				}
+			}
+		}
+	}
+
+	// Draw "Press [Q] to quit" at bottom
+	pressMsg := "Press [Q] to quit"
 	pressY := GameHeight - 2
 	pressX := (GameWidth - len(pressMsg)) / 2
 	for i, ch := range pressMsg {
